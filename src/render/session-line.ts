@@ -164,32 +164,42 @@ export function renderSessionLine(ctx: RenderContext): string {
         const syncingSuffix = ctx.usageData.apiError === 'rate-limited'
           ? ` ${dim('(syncing...)')}`
           : '';
-        const fiveHourDisplay = formatUsagePercent(fiveHour, colors);
-        const fiveHourReset = formatResetTime(ctx.usageData.fiveHourResetAt);
-
         const usageBarEnabled = display?.usageBarEnabled ?? true;
-        const fiveHourPart = usageBarEnabled
-          ? (fiveHourReset
-              ? `${quotaBar(fiveHour ?? 0, barWidth, colors)} ${fiveHourDisplay} (${fiveHourReset} / 5h)`
-              : `${quotaBar(fiveHour ?? 0, barWidth, colors)} ${fiveHourDisplay}`)
-          : (fiveHourReset
-              ? `5h: ${fiveHourDisplay} (${fiveHourReset})`
-              : `5h: ${fiveHourDisplay}`);
-
-        const sevenDayThreshold = display?.sevenDayThreshold ?? 80;
-        if (sevenDay !== null && sevenDay >= sevenDayThreshold) {
-          const sevenDayDisplay = formatUsagePercent(sevenDay, colors);
-          const sevenDayReset = formatResetTime(ctx.usageData.sevenDayResetAt);
-          const sevenDayPart = usageBarEnabled
-            ? (sevenDayReset
-                ? `${quotaBar(sevenDay, barWidth, colors)} ${sevenDayDisplay} (${sevenDayReset} / 7d)`
-                : `${quotaBar(sevenDay, barWidth, colors)} ${sevenDayDisplay}`)
-            : (sevenDayReset
-                ? `7d: ${sevenDayDisplay} (${sevenDayReset})`
-                : `7d: ${sevenDayDisplay}`);
-          parts.push(`${fiveHourPart} | ${sevenDayPart}${syncingSuffix}`);
+        if (fiveHour === null && sevenDay !== null) {
+          const weeklyOnlyPart = formatUsageWindowPart({
+            label: '7d',
+            percent: sevenDay,
+            resetAt: ctx.usageData.sevenDayResetAt,
+            colors,
+            usageBarEnabled,
+            barWidth,
+            forceLabel: true,
+          });
+          parts.push(`${weeklyOnlyPart}${syncingSuffix}`);
         } else {
-          parts.push(`${fiveHourPart}${syncingSuffix}`);
+          const fiveHourPart = formatUsageWindowPart({
+            label: '5h',
+            percent: fiveHour,
+            resetAt: ctx.usageData.fiveHourResetAt,
+            colors,
+            usageBarEnabled,
+            barWidth,
+          });
+
+          const sevenDayThreshold = display?.sevenDayThreshold ?? 80;
+          if (sevenDay !== null && sevenDay >= sevenDayThreshold) {
+            const sevenDayPart = formatUsageWindowPart({
+              label: '7d',
+              percent: sevenDay,
+              resetAt: ctx.usageData.sevenDayResetAt,
+              colors,
+              usageBarEnabled,
+              barWidth,
+            });
+            parts.push(`${fiveHourPart} | ${sevenDayPart}${syncingSuffix}`);
+          } else {
+            parts.push(`${fiveHourPart}${syncingSuffix}`);
+          }
         }
       }
     }
@@ -273,6 +283,38 @@ function formatUsagePercent(percent: number | null, colors?: RenderContext['conf
   }
   const color = getQuotaColor(percent, colors);
   return `${color}${percent}%${RESET}`;
+}
+
+function formatUsageWindowPart({
+  label,
+  percent,
+  resetAt,
+  colors,
+  usageBarEnabled,
+  barWidth,
+  forceLabel = false,
+}: {
+  label: '5h' | '7d';
+  percent: number | null;
+  resetAt: Date | null;
+  colors?: RenderContext['config']['colors'];
+  usageBarEnabled: boolean;
+  barWidth: number;
+  forceLabel?: boolean;
+}): string {
+  const usageDisplay = formatUsagePercent(percent, colors);
+  const reset = formatResetTime(resetAt);
+
+  if (usageBarEnabled) {
+    const body = reset
+      ? `${quotaBar(percent ?? 0, barWidth, colors)} ${usageDisplay} (${reset} / ${label})`
+      : `${quotaBar(percent ?? 0, barWidth, colors)} ${usageDisplay}`;
+    return forceLabel ? `${label}: ${body}` : body;
+  }
+
+  return reset
+    ? `${label}: ${usageDisplay} (${reset})`
+    : `${label}: ${usageDisplay}`;
 }
 
 function formatUsageError(error?: string): string {

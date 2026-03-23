@@ -881,6 +881,23 @@ test('renderSessionLine respects sevenDayThreshold override', () => {
   assert.ok(line.includes('7d:'), 'should include 7d when threshold is 0');
 });
 
+test('renderSessionLine shows weekly-only usage without a ghost 5h section', () => {
+  const ctx = baseContext();
+  ctx.config.display.sevenDayThreshold = 80;
+  ctx.usageData = {
+    planName: 'Pro',
+    fiveHour: null,
+    sevenDay: 13,
+    fiveHourResetAt: null,
+    sevenDayResetAt: null,
+  };
+
+  const line = stripAnsi(renderSessionLine(ctx));
+  assert.ok(!line.includes('5h:'), `should not render a ghost 5h section: ${line}`);
+  assert.ok(line.includes('7d:'), `should render the weekly window when it is the only usage value: ${line}`);
+  assert.ok(line.includes('13%'), `should render the weekly percentage: ${line}`);
+});
+
 test('renderSessionLine shows 5hr reset countdown', () => {
   const ctx = baseContext();
   const resetTime = new Date(Date.now() + 7200000); // 2 hours from now
@@ -951,6 +968,25 @@ test('renderUsageLine shows 7d reset countdown in bar mode when above threshold'
   assert.ok(line.includes('85%'), `should include 7d percentage: ${line}`);
   assert.ok(line.includes('(resets in 1d 4h)'), `should include 7d reset countdown in bar mode: ${line}`);
   assert.ok(line.includes('|'), `should render both usage windows above the threshold: ${line}`);
+});
+
+test('renderUsageLine shows weekly-only usage without a ghost 5h section', () => {
+  const ctx = baseContext();
+  ctx.config.display.sevenDayThreshold = 80;
+  ctx.usageData = {
+    planName: 'Pro',
+    fiveHour: null,
+    sevenDay: 13,
+    fiveHourResetAt: null,
+    sevenDayResetAt: null,
+  };
+
+  const line = stripAnsi(renderUsageLine(ctx));
+  assert.ok(line.includes('Usage'), `should render usage line: ${line}`);
+  assert.ok(!line.includes('5h:'), `should not render a ghost 5h section: ${line}`);
+  assert.ok(line.includes('7d:'), `should render the weekly window when it is the only usage value: ${line}`);
+  assert.ok(line.includes('13%'), `should render the weekly percentage: ${line}`);
+  assert.ok(!line.includes('|'), `should not render a separator for a missing 5h window: ${line}`);
 });
 
 test('renderSessionLine displays limit reached warning', () => {
