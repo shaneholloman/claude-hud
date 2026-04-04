@@ -2,6 +2,7 @@ export const zh = {
     // Labels
     "label.context": "上下文",
     "label.usage": "用量",
+    "label.weekly": "本周",
     "label.approxRam": "内存",
     "label.rules": "规则",
     "label.hooks": "钩子",
