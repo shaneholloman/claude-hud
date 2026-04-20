@@ -59,6 +59,9 @@ export function paddedLabel(key, colors) {
     const padded = pad > 0 ? text + " ".repeat(pad) : text;
     return label(padded, colors);
 }
+export function progressLabel(key, colors, align = false) {
+    return align ? paddedLabel(key, colors) : label(t(key), colors);
+}
 // Exported for testing only.
 export { plainTextWidth as _plainTextWidth, maxLabelWidth as _maxLabelWidth };
 //# sourceMappingURL=label-align.js.map

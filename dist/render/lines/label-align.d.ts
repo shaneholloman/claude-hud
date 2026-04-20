@@ -13,5 +13,6 @@ declare function maxLabelWidth(): number;
  * ANSI helper.
  */
 export declare function paddedLabel(key: MessageKey, colors?: Partial<HudColorOverrides>): string;
+export declare function progressLabel(key: MessageKey, colors?: Partial<HudColorOverrides>, align?: boolean): string;
 export { plainTextWidth as _plainTextWidth, maxLabelWidth as _maxLabelWidth };
 //# sourceMappingURL=label-align.d.ts.map

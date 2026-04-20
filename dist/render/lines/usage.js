@@ -3,8 +3,8 @@ import { getProviderLabel } from "../../stdin.js";
 import { critical, label, getQuotaColor, quotaBar, RESET } from "../colors.js";
 import { getAdaptiveBarWidth } from "../../utils/terminal.js";
 import { t } from "../../i18n/index.js";
-import { paddedLabel } from "./label-align.js";
-export function renderUsageLine(ctx) {
+import { progressLabel } from "./label-align.js";
+export function renderUsageLine(ctx, alignLabels = false) {
     const display = ctx.config?.display;
     const colors = ctx.config?.colors;
     if (display?.showUsage === false) {
@@ -16,7 +16,7 @@ export function renderUsageLine(ctx) {
     if (getProviderLabel(ctx.stdin)) {
         return null;
     }
-    const usageLabel = paddedLabel("label.usage", colors);
+    const usageLabel = progressLabel("label.usage", colors, alignLabels);
     if (isLimitReached(ctx.usageData)) {
         const resetTime = ctx.usageData.fiveHour === 100
             ? formatResetTime(ctx.usageData.fiveHourResetAt)
@@ -43,6 +43,7 @@ export function renderUsageLine(ctx) {
             usageBarEnabled,
             barWidth,
             forceLabel: true,
+            alignLabels,
         });
         return `${usageLabel} ${weeklyOnlyPart}`;
     }
@@ -64,6 +65,7 @@ export function renderUsageLine(ctx) {
             usageBarEnabled,
             barWidth,
             forceLabel: true,
+            alignLabels,
         });
         return `${usageLabel} ${fiveHourPart} | ${sevenDayPart}`;
     }
@@ -76,11 +78,11 @@ function formatUsagePercent(percent, colors) {
     const color = getQuotaColor(percent, colors);
     return `${color}${percent}%${RESET}`;
 }
-function formatUsageWindowPart({ label: windowLabel, labelKey, percent, resetAt, colors, usageBarEnabled, barWidth, forceLabel = false, }) {
+function formatUsageWindowPart({ label: windowLabel, labelKey, percent, resetAt, colors, usageBarEnabled, barWidth, forceLabel = false, alignLabels = false, }) {
     const usageDisplay = formatUsagePercent(percent, colors);
     const reset = formatResetTime(resetAt);
     const styledLabel = labelKey
-        ? paddedLabel(labelKey, colors)
+        ? progressLabel(labelKey, colors, alignLabels)
         : label(windowLabel, colors);
     if (usageBarEnabled) {
         const body = reset

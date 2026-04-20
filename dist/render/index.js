@@ -260,15 +260,16 @@ function collectActivityLines(ctx) {
     }
     return activityLines;
 }
-function renderElementLine(ctx, element) {
+function renderElementLine(ctx, element, options) {
     const display = ctx.config?.display;
+    const alignProgressLabels = options?.alignProgressLabels ?? false;
     switch (element) {
         case 'project':
             return renderProjectLine(ctx);
         case 'context':
-            return renderIdentityLine(ctx);
+            return renderIdentityLine(ctx, alignProgressLabels);
         case 'usage':
-            return renderUsageLine(ctx);
+            return renderUsageLine(ctx, alignProgressLabels);
         case 'memory':
             return renderMemoryLine(ctx);
         case 'environment':
@@ -313,8 +314,14 @@ function renderExpanded(ctx, terminalWidth = null) {
                     lines.push({ line: combinedLine, isActivity: false });
                 }
                 else {
-                    lines.push({ line: firstLine, isActivity: false });
-                    lines.push({ line: secondLine, isActivity: false });
+                    const firstStackedLine = renderElementLine(ctx, element, {
+                        alignProgressLabels: true,
+                    }) ?? firstLine;
+                    const secondStackedLine = renderElementLine(ctx, nextElement, {
+                        alignProgressLabels: true,
+                    }) ?? secondLine;
+                    lines.push({ line: firstStackedLine, isActivity: false });
+                    lines.push({ line: secondStackedLine, isActivity: false });
                 }
             }
             else if (firstLine) {
