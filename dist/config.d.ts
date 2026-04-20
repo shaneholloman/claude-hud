@@ -30,6 +30,7 @@ export interface HudColorOverrides {
     custom: HudColorValue;
 }
 export declare const DEFAULT_ELEMENT_ORDER: HudElement[];
+export declare const DEFAULT_MERGE_GROUPS: HudElement[][];
 export interface HudConfig {
     language: Language;
     lineLayout: LineLayoutType;
@@ -69,6 +70,7 @@ export interface HudConfig {
         showMemoryUsage: boolean;
         showSessionTokens: boolean;
         showOutputStyle: boolean;
+        mergeGroups: HudElement[][];
         autocompactBuffer: AutocompactBufferMode;
         usageThreshold: number;
         sevenDayThreshold: number;

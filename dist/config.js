@@ -12,6 +12,9 @@ export const DEFAULT_ELEMENT_ORDER = [
     'agents',
     'todos',
 ];
+export const DEFAULT_MERGE_GROUPS = [
+    ['context', 'usage'],
+];
 const KNOWN_ELEMENTS = new Set(DEFAULT_ELEMENT_ORDER);
 export const DEFAULT_CONFIG = {
     language: 'en',
@@ -52,6 +55,7 @@ export const DEFAULT_CONFIG = {
         showMemoryUsage: false,
         showSessionTokens: false,
         showOutputStyle: false,
+        mergeGroups: DEFAULT_MERGE_GROUPS.map(group => [...group]),
         autocompactBuffer: 'enabled',
         usageThreshold: 0,
         sevenDayThreshold: 80,
@@ -141,6 +145,45 @@ function validateElementOrder(value) {
         elementOrder.push(element);
     }
     return elementOrder.length > 0 ? elementOrder : [...DEFAULT_ELEMENT_ORDER];
+}
+function validateMergeGroups(value) {
+    if (!Array.isArray(value)) {
+        return DEFAULT_MERGE_GROUPS.map(group => [...group]);
+    }
+    if (value.length === 0) {
+        return [];
+    }
+    const usedElements = new Set();
+    const mergeGroups = [];
+    for (const group of value) {
+        if (!Array.isArray(group)) {
+            continue;
+        }
+        const seenInGroup = new Set();
+        const normalizedGroup = [];
+        const pendingElements = [];
+        for (const item of group) {
+            if (typeof item !== 'string' || !KNOWN_ELEMENTS.has(item)) {
+                continue;
+            }
+            const element = item;
+            if (seenInGroup.has(element) || usedElements.has(element)) {
+                continue;
+            }
+            seenInGroup.add(element);
+            normalizedGroup.push(element);
+            pendingElements.push(element);
+        }
+        if (normalizedGroup.length >= 2) {
+            for (const element of pendingElements) {
+                usedElements.add(element);
+            }
+            mergeGroups.push(normalizedGroup);
+        }
+    }
+    return mergeGroups.length > 0
+        ? mergeGroups
+        : DEFAULT_MERGE_GROUPS.map(group => [...group]);
 }
 function migrateConfig(userConfig) {
     const migrated = { ...userConfig };
@@ -286,6 +329,7 @@ export function mergeConfig(userConfig) {
         showOutputStyle: typeof migrated.display?.showOutputStyle === 'boolean'
             ? migrated.display.showOutputStyle
             : DEFAULT_CONFIG.display.showOutputStyle,
+        mergeGroups: validateMergeGroups(migrated.display?.mergeGroups),
         autocompactBuffer: validateAutocompactBuffer(migrated.display?.autocompactBuffer)
             ? migrated.display.autocompactBuffer
             : DEFAULT_CONFIG.display.autocompactBuffer,
