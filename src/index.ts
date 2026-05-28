@@ -9,11 +9,11 @@ import { getClaudeCodeVersion } from "./version.js";
 import { getMemoryUsage } from "./memory.js";
 import { resolveEffortLevel } from "./effort.js";
 import { applyContextWindowFallback } from "./context-cache.js";
-import { getUsageFromExternalSnapshot } from "./external-usage.js";
+import { getUsageFromExternalSnapshot, writeExternalUsageSnapshot } from "./external-usage.js";
 import { setLanguage, t } from "./i18n/index.js";
 import type { RenderContext } from "./types.js";
 
-export { getUsageFromExternalSnapshot } from "./external-usage.js";
+export { getUsageFromExternalSnapshot, writeExternalUsageSnapshot } from "./external-usage.js";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
 
@@ -21,6 +21,7 @@ export type MainDeps = {
   readStdin: typeof readStdin;
   getUsageFromStdin: typeof getUsageFromStdin;
   getUsageFromExternalSnapshot: typeof getUsageFromExternalSnapshot;
+  writeExternalUsageSnapshot: typeof writeExternalUsageSnapshot;
   parseTranscript: typeof parseTranscript;
   countConfigs: typeof countConfigs;
   getGitStatus: typeof getGitStatus;
@@ -40,6 +41,7 @@ export async function main(overrides: Partial<MainDeps> = {}): Promise<void> {
     readStdin,
     getUsageFromStdin,
     getUsageFromExternalSnapshot,
+    writeExternalUsageSnapshot,
     parseTranscript,
     countConfigs,
     getGitStatus,
@@ -88,8 +90,18 @@ export async function main(overrides: Partial<MainDeps> = {}): Promise<void> {
       : null;
 
     let usageData: RenderContext["usageData"] = null;
-    if (config.display.showUsage !== false) {
-      usageData = deps.getUsageFromStdin(stdin);
+    const shouldReadUsage = config.display.showUsage !== false;
+    const shouldWriteUsage = Boolean(config.display.externalUsageWritePath);
+    const stdinUsage = shouldReadUsage || shouldWriteUsage
+      ? deps.getUsageFromStdin(stdin)
+      : null;
+
+    if (shouldWriteUsage && stdinUsage) {
+      deps.writeExternalUsageSnapshot(config, stdinUsage, deps.now());
+    }
+
+    if (shouldReadUsage) {
+      usageData = stdinUsage;
       if (!usageData) {
         usageData = deps.getUsageFromExternalSnapshot(config, deps.now());
       }
