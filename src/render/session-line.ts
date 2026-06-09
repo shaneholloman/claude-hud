@@ -264,13 +264,13 @@ export function renderSessionLine(ctx: RenderContext): string {
           }
         }
       }
+    }
 
-      if (ctx.usageData.balanceLabel) {
-        if (!hasWindowData) {
-          parts.push(`${label(t('label.usage'), colors)} ${ctx.usageData.balanceLabel}`);
-        } else {
-          parts.push(ctx.usageData.balanceLabel);
-        }
+    if (ctx.usageData.balanceLabel) {
+      if (!hasWindowData) {
+        parts.push(`${label(t('label.usage'), colors)} ${ctx.usageData.balanceLabel}`);
+      } else {
+        parts.push(ctx.usageData.balanceLabel);
       }
     }
   }
