@@ -82,6 +82,15 @@ interface TranscriptCacheFile {
 
 const TRANSCRIPT_CACHE_VERSION = 8;
 const MCP_TOOL_NAME_PATTERN = /^mcp__(.+?)__(.+)$/;
+const ACTIVITY_NAME_MAX_LEN = 64;
+const DISPLAY_CONTROL_PATTERN = new RegExp(
+  '[' +
+  '\\u0000-\\u001F\\u007F-\\u009F' +
+  '\\u061C\\u200E\\u200F' +
+  '\\u202A-\\u202E\\u2066-\\u2069\\u206A-\\u206F' +
+  ']',
+  'g',
+);
 
 // Hard cap on the advisor model ID captured from the transcript. Real Claude
 // model IDs (e.g. "claude-haiku-4-5-20251001") fit comfortably under this; the
@@ -121,10 +130,7 @@ function normalizeNameList(value: unknown): string[] {
   const seen = new Set<string>();
   const names: string[] = [];
   for (const item of value) {
-    if (typeof item !== 'string') {
-      continue;
-    }
-    const name = item.trim();
+    const name = normalizeActivityName(item);
     if (!name || seen.has(name)) {
       continue;
     }
@@ -133,6 +139,29 @@ function normalizeNameList(value: unknown): string[] {
   }
 
   return names;
+}
+
+function normalizeActivityName(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const sanitized = value
+    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)/g, '')
+    .replace(/\x1B[@-Z\\-_]/g, '')
+    .replace(DISPLAY_CONTROL_PATTERN, '')
+    .trim();
+
+  if (!sanitized) {
+    return undefined;
+  }
+
+  if (sanitized.length <= ACTIVITY_NAME_MAX_LEN) {
+    return sanitized;
+  }
+
+  return `${sanitized.slice(0, ACTIVITY_NAME_MAX_LEN - 1)}…`;
 }
 
 function getTranscriptCachePath(transcriptPath: string, homeDir: string): string {
@@ -599,11 +628,7 @@ function extractTarget(toolName: string, input?: Record<string, unknown>): strin
 }
 
 function normalizeSkillName(value: unknown): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-  const skillName = value.trim();
-  return skillName.length > 0 ? skillName : undefined;
+  return normalizeActivityName(value);
 }
 
 function extractMcpServerName(toolName: string): string | undefined {
@@ -612,8 +637,7 @@ function extractMcpServerName(toolName: string): string | undefined {
     return undefined;
   }
 
-  const serverName = match[1].trim();
-  return serverName.length > 0 ? serverName : undefined;
+  return normalizeActivityName(match[1]);
 }
 
 function resolveTaskIndex(

@@ -1330,6 +1330,34 @@ test('parseTranscript detects active skills and distinct MCP servers from tool_u
   assert.deepEqual(result.mcpServers, ['linear', 'slack']);
 });
 
+test('parseTranscript sanitizes and caps active skill and MCP names', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-'));
+  const filePath = path.join(dir, 'unsafe-activity.jsonl');
+  const longSkill = `skill-${'x'.repeat(100)}`;
+  const lines = [
+    JSON.stringify({
+      message: {
+        content: [
+          { type: 'tool_use', id: 'skill-1', name: 'Skill', input: { skill: `\x1b[31m${longSkill}\x1b[0m\u202E` } },
+          { type: 'tool_use', id: 'mcp-1', name: 'mcp__bad\x1b]8;;https://evil.example\x07server\u202E__tool', input: {} },
+        ],
+      },
+    }),
+  ];
+
+  await writeFile(filePath, lines.join('\n'), 'utf8');
+
+  try {
+    const result = await parseTranscript(filePath);
+    assert.equal(result.skills.length, 1);
+    assert.equal(result.skills[0].length, 64);
+    assert.equal(result.skills[0], `${longSkill.slice(0, 63)}…`);
+    assert.deepEqual(result.mcpServers, ['badserver']);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('renderSkillsLine and renderMcpLine show counts and names when enabled', () => {
   const ctx = baseContext();
   ctx.config.display.showSkills = true;
@@ -1344,6 +1372,21 @@ test('renderSkillsLine and renderMcpLine show counts and names when enabled', ()
   assert.equal(mcpLine, '✓ MCPs (2): linear, slack');
 });
 
+test('renderSkillsLine and renderMcpLine sanitize direct transcript names before display', () => {
+  const ctx = baseContext();
+  ctx.config.display.showSkills = true;
+  ctx.config.display.showMcp = true;
+  ctx.transcript.skills = ['\x1b[31mfrontend-design\x1b[0m\u202E', '\x07'];
+  ctx.transcript.mcpServers = [`linear-${'x'.repeat(100)}`];
+
+  const skillsLine = stripAnsi(renderSkillsLine(ctx) ?? '');
+  const mcpLine = stripAnsi(renderMcpLine(ctx) ?? '');
+
+  assert.equal(skillsLine, '✓ Skills (1): frontend-design');
+  assert.ok(!skillsLine.includes('\u202E'), 'bidi control must not render');
+  assert.equal(mcpLine, `✓ MCPs (1): ${`linear-${'x'.repeat(100)}`.slice(0, 63)}…`);
+});
+
 test('renderSkillsLine and renderMcpLine return null with no data even when enabled', () => {
   const ctx = baseContext();
   ctx.config.display.showSkills = true;
@@ -1351,6 +1394,24 @@ test('renderSkillsLine and renderMcpLine return null with no data even when enab
 
   assert.equal(renderSkillsLine(ctx), null);
   assert.equal(renderMcpLine(ctx), null);
+});
+
+test('renderToolsLine suppresses generic Skill entries when the Skills line is enabled', () => {
+  const ctx = baseContext();
+  ctx.config.display.showSkills = true;
+  ctx.transcript.tools = [
+    { id: 'tool-1', name: 'Skill', target: 'frontend-design', status: 'completed', startTime: new Date(0), endTime: new Date(0) },
+    { id: 'tool-2', name: 'Read', status: 'completed', startTime: new Date(0), endTime: new Date(0) },
+  ];
+
+  const line = stripAnsi(renderToolsLine(ctx) ?? '');
+  assert.ok(!line.includes('Skill'), `Skill tool should be suppressed: ${line}`);
+  assert.ok(line.includes('Read'), `other tools should remain visible: ${line}`);
+
+  ctx.transcript.tools = [
+    { id: 'tool-1', name: 'Skill', target: 'frontend-design', status: 'completed', startTime: new Date(0), endTime: new Date(0) },
+  ];
+  assert.equal(renderToolsLine(ctx), null);
 });
 
 test('skills and MCP activity lines stay hidden by default', () => {
